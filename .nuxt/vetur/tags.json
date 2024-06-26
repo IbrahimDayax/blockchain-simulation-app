@@ -1,0 +1,35 @@
+{
+  "Blocks": {
+    "description": "Auto imported from components/Blocks.vue"
+  },
+  "Button": {
+    "description": "Auto imported from components/Button.vue"
+  },
+  "Error": {
+    "description": "Auto imported from components/Error.vue"
+  },
+  "Loader": {
+    "description": "Auto imported from components/Loader.vue"
+  },
+  "Log": {
+    "description": "Auto imported from components/Log.vue"
+  },
+  "Menu": {
+    "description": "Auto imported from components/Menu.vue"
+  },
+  "Navbar": {
+    "description": "Auto imported from components/Navbar.vue"
+  },
+  "Pending": {
+    "description": "Auto imported from components/Pending.vue"
+  },
+  "Setting": {
+    "description": "Auto imported from components/Setting.vue"
+  },
+  "Transaction": {
+    "description": "Auto imported from components/Transaction.vue"
+  },
+  "Wallets": {
+    "description": "Auto imported from components/Wallets.vue"
+  }
+}

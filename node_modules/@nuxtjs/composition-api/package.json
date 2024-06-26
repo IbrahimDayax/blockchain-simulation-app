@@ -1,0 +1,119 @@
+{
+  "name": "@nuxtjs/composition-api",
+  "version": "0.34.0",
+  "description": "Composition API hooks for Nuxt",
+  "keywords": [
+    "vue",
+    "vuejs",
+    "nuxt",
+    "composition-api",
+    "typescript",
+    "javascript"
+  ],
+  "repository": "nuxt-community/composition-api",
+  "license": "MIT",
+  "author": {
+    "name": "Daniel Roe",
+    "email": "daniel@roe.dev",
+    "url": "https://roe.dev"
+  },
+  "sideEffects": true,
+  "exports": {
+    ".": "./dist/runtime/index.mjs",
+    "./module": "./dist/module/index.mjs",
+    "./package.json": "./package.json",
+    "./dist/babel-plugin": "./dist/babel-plugin/index.js",
+    "./dist/runtime/globals": "./dist/runtime/globals.js",
+    "./dist/runtime/templates/*": "./dist/runtime/templates/*"
+  },
+  "main": "./dist/runtime/index.js",
+  "module": "./dist/runtime/index.mjs",
+  "types": "./dist/runtime/index.d.ts",
+  "files": [
+    "dist",
+    "module.js"
+  ],
+  "scripts": {
+    "_prepublishOnly": "yarn lint && yarn test",
+    "build": "siroc build && cp dist/runtime/index.d.ts dist/runtime/index.d.mts",
+    "clean:fixture": "rimraf test/fixture/dist/ test/fixture/.nuxt",
+    "dev": "nuxt dev test/fixture",
+    "fixture:generate": "yarn fixture:generate:export && yarn http-server -s -p 8000 test/fixture/dist",
+    "fixture:generate:export": "yarn clean:fixture && cross-env GENERATE=true PORT=6000 CMD=generate yarn nuxt-run",
+    "fixture:prod": "yarn clean:fixture && cross-env CMD=build yarn nuxt-run && cross-env CMD=start yarn nuxt-run",
+    "lint": "run-s lint:all:*",
+    "lint:all:eslint": "yarn lint:eslint --ext .js,.mjs,.ts,.vue .",
+    "lint:eslint": "eslint --fix",
+    "now-build": "NOW_BUILD=true yarn fixture:generate:export",
+    "nuxt-run": "cross-env-shell \"yarn nuxt $CMD test/fixture\"",
+    "prepare": "yarn build",
+    "release": "release-it",
+    "test": "run-s test:*",
+    "test:e2e-generated": "cross-env GENERATE=true PORT=8000 start-server-and-test fixture:generate http://localhost:8000 \"testcafe -q firefox:headless test/e2e\"",
+    "test:e2e-globals": "cross-env GLOBALS=true PORT=3000 start-server-and-test fixture:prod http://localhost:3000 \"testcafe firefox:headless test/e2e\"",
+    "test:e2e-ssr": "cross-env PORT=4000 start-server-and-test fixture:prod http://localhost:4000 \"testcafe firefox:headless test/e2e\"",
+    "test:types": "tsd",
+    "test:unit": "vitest run",
+    "watch": "yarn build -w"
+  },
+  "dependencies": {
+    "defu": "^6.1.4",
+    "estree-walker": "^2.0.2",
+    "fs-extra": "^11.2.0",
+    "magic-string": "^0.30.9",
+    "pathe": "^1.1.2",
+    "ufo": "^1.5.3"
+  },
+  "devDependencies": {
+    "@babel/traverse": "^7.24.1",
+    "@babel/types": "^7.24.0",
+    "@nuxt/test-utils": "^0.2.2",
+    "@nuxt/types": "^2.17.3",
+    "@nuxt/typescript-build": "^3.0.2",
+    "@nuxtjs/module-test-utils": "^1.6.3",
+    "@nuxtjs/pwa": "^3.3.5",
+    "@release-it/conventional-changelog": "^8.0.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.12.7",
+    "@types/normalize-path": "^3.0.2",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
+    "codecov": "^3.8.3",
+    "core-js": "3.36.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.57.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "happy-dom": "^14.7.1",
+    "http-server": "^14.1.1",
+    "lint-staged": "^15.2.2",
+    "npm-run-all2": "^5.0.2",
+    "nuxt": "^2.17.3",
+    "release-it": "17.2.0",
+    "rimraf": "^5.0.5",
+    "siroc": "0.16.0",
+    "start-server-and-test": "^2.0.3",
+    "testcafe": "3.5.0",
+    "ts-loader": "^8.4.0",
+    "tsd": "^0.31.0",
+    "typescript": "5.4.5",
+    "vite": "^5.2.8",
+    "vitest": "^1.5.0",
+    "yorkie": "^2.0.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^2.17.3",
+    "vue": "^2.7.16"
+  },
+  "engines": {
+    "node": ">=v14.13.0"
+  },
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
+  "tsd": {
+    "directory": "test/tsd",
+    "compilerOptions": {
+      "rootDir": "."
+    }
+  }
+}
