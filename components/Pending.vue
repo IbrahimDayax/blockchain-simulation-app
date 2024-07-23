@@ -159,8 +159,8 @@
               <font-awesome-icon :icon="['fas', 'clock']" class="text-gray-300" />
             </div>
           </div>
-          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startMining')" @click.native="openDialog(false)" />
-          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startAIMining')" @click.native="openDialog(true)" />
+          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startMining')" @click.native="openDialog" />
+          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startAIMining')" @click.native="openAIDialog" />
         </div>
       </div>
       <div v-if="loading" class="z-10 absolute top-0 left-0 w-full h-full bg-black text-gray-100 flex flex-col text-center justify-center">
@@ -199,7 +199,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { $sleep, $t } = useContext()
-
     const { blockchain, wallets } = props
     const pendingTransactions = computed(() => blockchain.pendingTransactions)
     const loading = ref(false)
@@ -213,7 +212,7 @@ export default defineComponent({
     })
     const miningDelay = 5
 
-    const openDialog = (ai) => {
+    const openDialog = () => {
       const tour = new Shepherd.Tour({
         useModalOverlay: true,
         defaultStepOptions: {
@@ -237,7 +236,7 @@ export default defineComponent({
           {
             text: $t('components.pending.dialog.next'),
             action() {
-              setTimeout(() => startMining(ai), 500)
+              setTimeout(() => startMining(), 500)
               return this.hide();
             }
           }
@@ -246,21 +245,65 @@ export default defineComponent({
       tour.start()
     }
 
-    const startMining = async (ai) => {
+    const openAIDialog = () => {
+      const tour = new Shepherd.Tour({
+        useModalOverlay: true,
+        defaultStepOptions: {
+          cancelIcon: {
+            enabled: true
+          },
+          classes: 'shepherd-theme-square',
+        },
+      })
+      tour.addStep({
+        title: $t('components.pending.dialog.title'),
+        text: $t('components.pending.dialog.text'),
+        buttons: [
+          {
+            text: $t('components.pending.dialog.prev'),
+            classes: 'shepherd-button-secondary',
+            action() {
+              return this.hide();
+            },
+          },
+          {
+            text: $t('components.pending.dialog.next'),
+            action() {
+              setTimeout(() => startAIMining(), 500)
+              return this.hide();
+            }
+          }
+        ]
+      })
+      tour.start()
+    }
+
+    const startMining = async () => {
       document.querySelector('.panel-pending-transaction').setAttribute('mining', '0')
       showVisualizer.value = true
       loading.value = true
       console.clear()
       await $sleep(1000)
-      visualMine(ai).finally(() => {
+      visualMine().finally(() => {
         loading.value = false
         document.querySelector('.panel-pending-transaction').setAttribute('mining', '1')
       })
     }
 
-    const visualMine = async (ai) => {
-      const mineAddress = wallets[0].publicKey
+    const startAIMining = async () => {
+      document.querySelector('.panel-pending-transaction').setAttribute('mining', '0')
+      showVisualizer.value = true
+      loading.value = true
+      console.clear()
+      await $sleep(1000)
+      aiVisualMine().finally(() => {
+        loading.value = false
+        document.querySelector('.panel-pending-transaction').setAttribute('mining', '1')
+      })
+    }
 
+    const visualMine = async () => {
+      const mineAddress = wallets[0].publicKey
       Log.add(`[Blockchain] Starting mining with miner ${mineAddress}`)
       blockchain.addTransaction(
         new Transaction(
@@ -272,43 +315,85 @@ export default defineComponent({
       const block = new Block(blockchain.pendingTransactions, dayjs().toDate())
       block.previousHash = blockchain.getLastBlock().hash
       visualizer.payload = JSON.stringify(block.data)
-
       const start = Date.now()
       const difficulty = blockchain.blockProofOfWorkDifficulty
-
-      if (ai) {
-        await blockchain.aiMine(block)
-      } else {
-        while (block.hash.slice(0, difficulty) !== '0'.repeat(difficulty)) {
-          await $sleep(miningDelay)
-
-          const current = Date.now()
-          block.nonce++
-          block.timestamp = dayjs().unix()
-          block.hash = block.calculateHash()
-          const currentTime = Math.floor((current - start) / 1000)
-          console.log(`[Block] Mining Block - generate hash and found ${block.hash} | ${currentTime}s | nonce ${block.nonce}`)
-          visualizer.nonce = block.nonce
-          visualizer.hash = block.hash
-          visualizer.timestamp = block.timestamp
-          visualizer.elapsedTime = currentTime
-        }
+      while (block.hash.slice(0, difficulty) !== '0'.repeat(difficulty)) {
+        await $sleep(miningDelay)
+        const current = Date.now()
+        block.nonce++
+        block.timestamp = dayjs().unix()
+        block.hash = block.calculateHash()
+        const currentTime = Math.floor((current - start) / 1000)
+        console.log(`[Block] Mining Block - generate hash and found ${block.hash} | ${currentTime}s | nonce ${block.nonce}`)
+        visualizer.nonce = block.nonce
+        visualizer.hash = block.hash
+        visualizer.timestamp = block.timestamp
+        visualizer.elapsedTime = currentTime
       }
-
       const end = Date.now()
       const time = (end - start) / 1000
       console.log(`[Block] Mining Block - Success in ${time}s with nonce ${block.nonce}`)
       Log.add(`[Block] Mining Block - Success in ${time}s with nonce ${block.nonce}`)
-
       blockchain.chain.push(block)
       blockchain.pendingTransactions = []
       Log.add(`[Blockchain] Mining complete`)
       await $sleep(1000)
     }
 
+    const aiVisualMine = () => {
+      return new Promise((resolve) => {
+        const mineAddress = wallets[0].publicKey
+        Log.add(`[Blockchain] Starting AI mining with miner ${mineAddress}`)
+        blockchain.addTransaction(
+          new Transaction(
+            blockchain.system.publicKey,
+            mineAddress,
+            blockchain.blockMineReward
+          ).sign(blockchain.system.privateKey)
+        )
+        const block = new Block(blockchain.pendingTransactions, dayjs().toDate())
+        block.previousHash = blockchain.getLastBlock().hash
+        visualizer.payload = JSON.stringify(block.data)
+        const start = Date.now()
+        const difficulty = blockchain.blockProofOfWorkDifficulty
+        let nonce = 0
+
+        const aiAlgorithm = () => {
+          const aiOptimization = Math.random() * 100
+          nonce += Math.floor(aiOptimization)
+          block.nonce = nonce
+          block.timestamp = dayjs().unix()
+          block.hash = block.calculateHash()
+          const currentTime = Math.floor((Date.now() - start) / 1000)
+          console.log(`[Block] AI Mining Block - generate hash and found ${block.hash} | ${currentTime}s | nonce ${block.nonce}`)
+          visualizer.nonce = block.nonce
+          visualizer.hash = block.hash
+          visualizer.timestamp = block.timestamp
+          visualizer.elapsedTime = currentTime
+
+          if (block.hash.slice(0, difficulty) === '0'.repeat(difficulty)) {
+            const end = Date.now()
+            const time = (end - start) / 1000
+            console.log(`[Block] AI Mining Block - Success in ${time}s with nonce ${block.nonce}`)
+            Log.add(`[Block] AI Mining Block - Success in ${time}s with nonce ${block.nonce}`)
+            blockchain.chain.push(block)
+            blockchain.pendingTransactions = []
+            Log.add(`[Blockchain] AI Mining complete`)
+            resolve(block)
+          } else {
+            setTimeout(aiAlgorithm, 0)
+          }
+        }
+
+        aiAlgorithm()
+      })
+    }
+
     return {
       openDialog,
+      openAIDialog,
       startMining,
+      startAIMining,
       pendingTransactions,
       loading,
       visualizer,
