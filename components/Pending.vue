@@ -159,7 +159,8 @@
               <font-awesome-icon :icon="['fas', 'clock']" class="text-gray-300" />
             </div>
           </div>
-          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startMining')" @click.native="openDialog" />
+          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startMining')" @click.native="openDialog(false)" />
+          <Button v-if="pendingTransactions.length !== 0" :text="$t('components.pending.startAIMining')" @click.native="openDialog(true)" />
         </div>
       </div>
       <div v-if="loading" class="z-10 absolute top-0 left-0 w-full h-full bg-black text-gray-100 flex flex-col text-center justify-center">
@@ -197,10 +198,8 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    //
     const { $sleep, $t } = useContext()
 
-    //
     const { blockchain, wallets } = props
     const pendingTransactions = computed(() => blockchain.pendingTransactions)
     const loading = ref(false)
@@ -214,8 +213,7 @@ export default defineComponent({
     })
     const miningDelay = 5
 
-    //
-    const openDialog = () => {
+    const openDialog = (ai) => {
       const tour = new Shepherd.Tour({
         useModalOverlay: true,
         defaultStepOptions: {
@@ -239,7 +237,7 @@ export default defineComponent({
           {
             text: $t('components.pending.dialog.next'),
             action() {
-              setTimeout(() => startMining(), 500)
+              setTimeout(() => startMining(ai), 500)
               return this.hide();
             }
           }
@@ -247,23 +245,23 @@ export default defineComponent({
       })
       tour.start()
     }
-    const startMining = async () => {
+
+    const startMining = async (ai) => {
       document.querySelector('.panel-pending-transaction').setAttribute('mining', '0')
       showVisualizer.value = true
       loading.value = true
       console.clear()
       await $sleep(1000)
-      visualMine().finally(() => {
+      visualMine(ai).finally(() => {
         loading.value = false
         document.querySelector('.panel-pending-transaction').setAttribute('mining', '1')
       })
     }
-    const visualMine = async () => {
+
+    const visualMine = async (ai) => {
       const mineAddress = wallets[0].publicKey
 
-      //
       Log.add(`[Blockchain] Starting mining with miner ${mineAddress}`)
-      // add reward to miner
       blockchain.addTransaction(
         new Transaction(
           blockchain.system.publicKey,
@@ -271,35 +269,37 @@ export default defineComponent({
           blockchain.blockMineReward
         ).sign(blockchain.system.privateKey)
       )
-      // create temp block
       const block = new Block(blockchain.pendingTransactions, dayjs().toDate())
-      // set previous block hash
       block.previousHash = blockchain.getLastBlock().hash
       visualizer.payload = JSON.stringify(block.data)
-      // start mining
+
       const start = Date.now()
       const difficulty = blockchain.blockProofOfWorkDifficulty
-      while (block.hash.slice(0, difficulty) !== '0'.repeat(difficulty)) {
-        // delay
-        await $sleep(miningDelay)
 
-        const current = Date.now()
-        block.nonce++
-        block.timestamp = dayjs().unix()
-        block.hash = block.calculateHash()
-        const currentTime = Math.floor((current - start) / 1000)
-        console.log(`[Block] Mining Block - generate hash and found ${block.hash} | ${currentTime}s | nonce ${block.nonce}`)
-        visualizer.nonce = block.nonce
-        visualizer.hash = block.hash
-        visualizer.timestamp = block.timestamp
-        visualizer.elapsedTime = currentTime
+      if (ai) {
+        await blockchain.aiMine(block)
+      } else {
+        while (block.hash.slice(0, difficulty) !== '0'.repeat(difficulty)) {
+          await $sleep(miningDelay)
+
+          const current = Date.now()
+          block.nonce++
+          block.timestamp = dayjs().unix()
+          block.hash = block.calculateHash()
+          const currentTime = Math.floor((current - start) / 1000)
+          console.log(`[Block] Mining Block - generate hash and found ${block.hash} | ${currentTime}s | nonce ${block.nonce}`)
+          visualizer.nonce = block.nonce
+          visualizer.hash = block.hash
+          visualizer.timestamp = block.timestamp
+          visualizer.elapsedTime = currentTime
+        }
       }
+
       const end = Date.now()
       const time = (end - start) / 1000
       console.log(`[Block] Mining Block - Success in ${time}s with nonce ${block.nonce}`)
       Log.add(`[Block] Mining Block - Success in ${time}s with nonce ${block.nonce}`)
 
-      //
       blockchain.chain.push(block)
       blockchain.pendingTransactions = []
       Log.add(`[Blockchain] Mining complete`)
