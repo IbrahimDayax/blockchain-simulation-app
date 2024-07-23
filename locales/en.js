@@ -41,7 +41,8 @@ export default {
       noTransactions: 'No transactions',
       miningInProgress: 'Mining in progress...',
       noteInProgress: 'You can open Console / Dev Panel in your browser to see what happening...',
-      startMining: 'Start Mining',
+      startMining: 'Start Mining (PoW)',
+      startAIMining: 'Start Mining (AI PoW)',
       visualizer: {
         title: 'Mining Visualizer',
         newBlockCandidate: 'New Block Candidate',
